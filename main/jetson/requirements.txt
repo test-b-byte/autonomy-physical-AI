@@ -1,0 +1,4 @@
+# Jetson-side pip dependencies (ROS 2 packages come from the Isaac ROS environment)
+websockets>=13.0
+pyserial
+pyzmq

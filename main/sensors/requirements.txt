@@ -1,0 +1,12 @@
+websockets>=12.0
+numpy>=1.24
+opencv-python>=4.8
+
+# Pi hardware — install separately on target:
+# ultralytics          # YOLOv8-nano (vision)
+# pyaudio              # microphone (acoustic)
+# smbus2               # IMU I2C (MPU-6050)
+# RPi.GPIO             # PIR/IR digital pin
+# board                # Adafruit blinka
+# busio                # Adafruit I2C
+# adafruit-circuitpython-mlx90640   # thermal camera

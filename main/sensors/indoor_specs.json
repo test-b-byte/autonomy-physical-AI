@@ -1,0 +1,7 @@
+{
+  "_comment": "Indoor sensor models for a ~5 m room (max_range_m, peak_pd, pfa). Acoustic is effectively off: the mic hears the whole room, so a hit says nothing about where. Tune after the distance test in INSTALL.md.",
+  "thermal":  {"max_range_m": 2.0,  "peak_pd": 0.80, "pfa": 0.05},
+  "vision":   {"max_range_m": 2.5,  "peak_pd": 0.80, "pfa": 0.05},
+  "ir":       {"max_range_m": 1.5,  "peak_pd": 0.80, "pfa": 0.10},
+  "acoustic": {"max_range_m": 0.01, "peak_pd": 0.50, "pfa": 0.50}
+}

@@ -1,0 +1,4 @@
+# Jetson-side dependencies
+# ROS2 packages (rclpy, nav2_simple_commander) are installed via apt/colcon,
+# not pip.  List only pip-installable packages here.
+websockets>=11.0

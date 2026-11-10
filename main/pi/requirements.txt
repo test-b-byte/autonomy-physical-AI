@@ -1,0 +1,8 @@
+# Pi-side Python dependencies (system packages: see pi/setup.sh)
+websockets>=11.0
+meshtastic
+pypubsub
+numpy
+opencv-python-headless
+onnxruntime
+pyzmq

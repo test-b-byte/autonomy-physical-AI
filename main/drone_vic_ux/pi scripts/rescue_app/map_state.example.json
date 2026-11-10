@@ -1,0 +1,9 @@
+{
+  "you":      {"x": 0, "y": 0, "uncertainty_m": 30},
+  "drone":    {"x": 6, "y": 4},
+  "team":     {"x": 260, "y": 210, "label": "TEAM"},
+  "hazards":  [{"x": 120, "y": -40, "label": "FIRE"}, {"x": -90, "y": 150, "label": "CLIFF"}],
+  "hostiles": [{"x": -330, "y": -300, "label": "ENEMY"}],
+  "heading_deg": null,
+  "updated": null
+}

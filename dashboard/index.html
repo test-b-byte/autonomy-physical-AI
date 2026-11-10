@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GHOST // Bayesian SAR</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #080d14;
+    color: #e0e8f0;
+    font-family: 'Courier New', monospace;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    background: #0d1520;
+    border-bottom: 1px solid #1e3a5f;
+    flex-shrink: 0;
+  }
+  header h1 { font-size: 1.1rem; letter-spacing: 4px; color: #00bcd4; }
+  header h1 span { color: #ff5722; }
+  #ws-status {
+    font-size: 0.72rem;
+    padding: 3px 10px;
+    border-radius: 3px;
+    background: #1a2a3a;
+    color: #666;
+  }
+  #ws-status.connected    { color: #4caf50; }
+  #ws-status.disconnected { color: #f44336; }
+
+  /* ── body ── */
+  main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── heatmap panel ── */
+  #map-panel {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    position: relative;
+  }
+  #heatmap {
+    image-rendering: pixelated;
+    border: 1px solid #1e3a5f;
+  }
+
+  /* contact overlay */
+  #contact-overlay {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255,23,68,0.92);
+    color: #fff;
+    padding: 12px 24px;
+    font-size: 1.1rem;
+    letter-spacing: 2px;
+    border-radius: 4px;
+    animation: pulse 0.8s ease-in-out infinite alternate;
+    pointer-events: none;
+    z-index: 10;
+    text-align: center;
+  }
+  #contact-overlay .coords { font-size: 0.75rem; margin-top: 4px; opacity: 0.9; }
+  @keyframes pulse {
+    from { box-shadow: 0 0 10px rgba(255,23,68,0.5); }
+    to   { box-shadow: 0 0 30px rgba(255,23,68,1); }
+  }
+
+  /* ── stats panel ── */
+  #stats-panel {
+    width: 240px;
+    background: #0d1520;
+    border-left: 1px solid #1e3a5f;
+    padding: 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+
+  .stat-group h3 {
+    font-size: 0.65rem;
+    letter-spacing: 3px;
+    color: #00bcd4;
+    border-bottom: 1px solid #1e3a5f;
+    padding-bottom: 5px;
+    margin-bottom: 8px;
+  }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    margin-bottom: 5px;
+  }
+  .stat-row .label { color: #607d8b; }
+  .stat-row .value { color: #e0e8f0; font-weight: bold; }
+
+  /* entropy bar */
+  #entropy-bar-wrap {
+    background: #1a2a3a;
+    border-radius: 2px;
+    height: 6px;
+    margin-top: 4px;
+    overflow: hidden;
+  }
+  #entropy-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #4caf50, #ff5722);
+    transition: width 0.3s;
+  }
+
+  /* sensor indicators */
+  .sensor-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    margin-bottom: 6px;
+  }
+  .sensor-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #263340;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .sensor-dot.active { background: #ff5722; box-shadow: 0 0 6px #ff5722; }
+  .sensor-conf { color: #546e7a; font-size: 0.72rem; margin-left: auto; }
+
+  /* contact info */
+  #contact-info {
+    background: #1a0a0a;
+    border: 1px solid #3a1010;
+    border-radius: 4px;
+    padding: 10px;
+    font-size: 0.75rem;
+    color: #ef9a9a;
+    display: none;
+  }
+  #contact-info.visible { display: block; }
+  #contact-info .contact-label {
+    color: #ff1744;
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+  }
+
+  /* hazard alerts */
+  #hazard-list {
+    font-size: 0.70rem;
+    line-height: 1.6;
+    color: #546e7a;
+  }
+
+  /* legend */
+  #legend {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.65rem;
+    color: #546e7a;
+    margin-top: auto;
+  }
+  #legend-bar {
+    flex: 1;
+    height: 8px;
+    border-radius: 2px;
+    background: linear-gradient(90deg,
+      #080d14 0%, #0d2a6e 20%, #0077aa 40%,
+      #00bcd4 60%, #ffeb3b 80%, #ff1744 100%);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>GHOST // <span>BAYESIAN SAR</span></h1>
+  <div id="ws-status" class="disconnected">OFFLINE</div>
+</header>
+
+<main>
+  <div id="map-panel">
+    <canvas id="heatmap"></canvas>
+    <div id="contact-overlay">
+      ★ CONTACT DECLARED
+      <div class="coords" id="contact-coords"></div>
+    </div>
+  </div>
+
+  <div id="stats-panel">
+
+    <div class="stat-group">
+      <h3>ROBOT</h3>
+      <div class="stat-row"><span class="label">position</span><span class="value" id="s-pos">—</span></div>
+      <div class="stat-row"><span class="label">cell</span><span class="value" id="s-cell">—</span></div>
+      <div class="stat-row"><span class="label">elevation</span><span class="value" id="s-elev">0.00m</span></div>
+      <div class="stat-row"><span class="label">next waypoint</span><span class="value" id="s-wp">—</span></div>
+      <div class="stat-row"><span class="label">sweeps</span><span class="value" id="s-sweeps">0</span></div>
+    </div>
+
+    <div class="stat-group">
+      <h3>TERRAIN</h3>
+      <div id="hazard-list">clear</div>
+    </div>
+
+    <div class="stat-group">
+      <h3>BELIEF MAP</h3>
+      <div class="stat-row"><span class="label">entropy</span><span class="value" id="s-entropy">—</span></div>
+      <div id="entropy-bar-wrap"><div id="entropy-bar" style="width:100%"></div></div>
+      <div class="stat-row" style="margin-top:6px"><span class="label">peak P</span><span class="value" id="s-peak">—</span></div>
+    </div>
+
+    <div class="stat-group">
+      <h3>SENSORS</h3>
+      <div class="sensor-row">
+        <div class="sensor-dot" id="dot-thermal"></div>
+        <span>Thermal</span>
+        <span class="sensor-conf" id="conf-thermal">—</span>
+      </div>
+      <div class="sensor-row">
+        <div class="sensor-dot" id="dot-vision"></div>
+        <span>Vision</span>
+        <span class="sensor-conf" id="conf-vision">—</span>
+      </div>
+      <div class="sensor-row">
+        <div class="sensor-dot" id="dot-acoustic"></div>
+        <span>Acoustic</span>
+        <span class="sensor-conf" id="conf-acoustic">—</span>
+      </div>
+      <div class="sensor-row">
+        <div class="sensor-dot" id="dot-ir"></div>
+        <span>IR</span>
+        <span class="sensor-conf" id="conf-ir">—</span>
+      </div>
+    </div>
+
+    <div id="contact-info">
+      <div class="contact-label">★ CONTACT</div>
+      <div id="contact-detail"></div>
+    </div>
+
+    <div id="legend">
+      <span>low</span>
+      <div id="legend-bar"></div>
+      <span>high</span>
+    </div>
+
+  </div>
+</main>
+
+<script>
+// ── config ───────────────────────────────────────────────────────────────────
+const WS_URL      = 'ws://localhost:9001/ws';
+const QUERY_MS    = 250;
+const CELL_PX     = 28;    // pixels per grid cell
+const MAX_ENTROPY = 6.0;   // log(400) ≈ 5.99
+
+// ── canvas setup ──────────────────────────────────────────────────────────────
+let gridW = 20, gridH = 20;
+const canvas = document.getElementById('heatmap');
+const ctx    = canvas.getContext('2d');
+canvas.width  = gridW * CELL_PX;
+canvas.height = gridH * CELL_PX;
+
+// ── colour scale (probability 0→1 normalised to current max) ─────────────────
+// Stops: deep navy → blue → cyan → yellow → hot red
+const STOPS = [
+  [0.00, [  8, 13, 20]],
+  [0.15, [ 13, 42,110]],
+  [0.35, [  0,119,170]],
+  [0.60, [  0,188,212]],
+  [0.80, [255,235, 59]],
+  [1.00, [255, 23, 68]],
+];
+
+function probToRGB(t) {
+  t = Math.max(0, Math.min(1, t));
+  for (let i = 1; i < STOPS.length; i++) {
+    const [t0, c0] = STOPS[i-1];
+    const [t1, c1] = STOPS[i];
+    if (t <= t1) {
+      const f = (t - t0) / (t1 - t0);
+      return c0.map((v, j) => Math.round(v + f * (c1[j] - v)));
+    }
+  }
+  return STOPS[STOPS.length-1][1];
+}
+
+// ── render ────────────────────────────────────────────────────────────────────
+let lastContact  = null;
+let sensorStatus = { thermal: null, vision: null, acoustic: null, ir: null };
+
+function render(state) {
+  const grid  = state.grid;
+  gridH = grid.length;
+  gridW = grid[0]?.length ?? 20;
+  if (canvas.width !== gridW * CELL_PX || canvas.height !== gridH * CELL_PX) {
+    canvas.width  = gridW * CELL_PX;
+    canvas.height = gridH * CELL_PX;
+  }
+
+  // Normalise to current max so colour range is always fully used
+  let maxP = 0;
+  for (const row of grid) for (const p of row) if (p > maxP) maxP = p;
+  if (maxP < 1e-9) maxP = 1;
+
+  // Draw cells
+  for (let y = 0; y < gridH; y++) {
+    for (let x = 0; x < gridW; x++) {
+      const t   = grid[y][x] / maxP;
+      const rgb = probToRGB(t);
+      ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+      ctx.fillRect(x * CELL_PX, y * CELL_PX, CELL_PX, CELL_PX);
+    }
+  }
+
+  // Grid lines (subtle)
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth   = 0.5;
+  for (let x = 0; x <= gridW; x++) {
+    ctx.beginPath(); ctx.moveTo(x*CELL_PX,0); ctx.lineTo(x*CELL_PX, gridH*CELL_PX); ctx.stroke();
+  }
+  for (let y = 0; y <= gridH; y++) {
+    ctx.beginPath(); ctx.moveTo(0, y*CELL_PX); ctx.lineTo(gridW*CELL_PX, y*CELL_PX); ctx.stroke();
+  }
+
+  // ── hazard overlays (drawn before robot so robot stays on top) ──
+  if (state.hazard_alerts && state.hazard_alerts.length > 0) {
+    drawHazards(state.hazard_alerts);
+  }
+
+  // ── robot marker ──
+  const [rcx, rcy] = state.robot_cell;
+  const rx = rcx * CELL_PX + CELL_PX/2;
+  const ry = rcy * CELL_PX + CELL_PX/2;
+  ctx.beginPath();
+  ctx.arc(rx, ry, CELL_PX*0.38, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fill();
+  ctx.font = `bold ${Math.round(CELL_PX*0.45)}px monospace`;
+  ctx.fillStyle = '#080d14';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('R', rx, ry);
+
+  // ── waypoint marker ──
+  const wp = state.next_waypoint;
+  if (wp && !(wp[0] === rcx && wp[1] === rcy)) {
+    const wx = wp[0] * CELL_PX + CELL_PX/2;
+    const wy = wp[1] * CELL_PX + CELL_PX/2;
+    const hs = CELL_PX * 0.30;
+    ctx.beginPath();
+    ctx.moveTo(wx, wy - hs);
+    ctx.lineTo(wx + hs, wy);
+    ctx.lineTo(wx, wy + hs);
+    ctx.lineTo(wx - hs, wy);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(0,188,212,0.85)';
+    ctx.fill();
+  }
+
+  // ── contact star ──
+  if (state.contact) {
+    const { cell_x, cell_y } = state.contact;
+    const cx = cell_x * CELL_PX + CELL_PX/2;
+    const cy = cell_y * CELL_PX + CELL_PX/2;
+    drawStar(cx, cy, CELL_PX * 0.45, 5, '#ff1744');
+  }
+
+  // ── stats panel ──
+  document.getElementById('s-pos').textContent =
+    `(${state.robot_x.toFixed(1)}m, ${state.robot_y.toFixed(1)}m)`;
+  document.getElementById('s-cell').textContent =
+    `[${state.robot_cell[0]}, ${state.robot_cell[1]}]`;
+  document.getElementById('s-elev').textContent =
+    `${(state.elevation ?? 0).toFixed(2)}m`;
+  document.getElementById('s-wp').textContent =
+    state.next_waypoint ? `[${state.next_waypoint[0]}, ${state.next_waypoint[1]}]` : '—';
+  document.getElementById('s-sweeps').textContent = state.sweep_count;
+  document.getElementById('s-entropy').textContent = state.entropy.toFixed(3);
+  document.getElementById('s-peak').textContent    = state.max_probability.toFixed(4);
+
+  // entropy bar (high entropy = wide = uncertain)
+  const entropyPct = Math.min(state.entropy / MAX_ENTROPY * 100, 100);
+  document.getElementById('entropy-bar').style.width = entropyPct + '%';
+
+  // terrain hazard list
+  updateHazards(state.hazard_alerts || []);
+
+  // contact overlay
+  updateContact(state.contact);
+}
+
+function drawStar(cx, cy, r, points, color) {
+  ctx.beginPath();
+  for (let i = 0; i < points * 2; i++) {
+    const angle  = (i * Math.PI) / points - Math.PI/2;
+    const radius = i % 2 === 0 ? r : r * 0.45;
+    i === 0
+      ? ctx.moveTo(cx + radius * Math.cos(angle), cy + radius * Math.sin(angle))
+      : ctx.lineTo(cx + radius * Math.cos(angle), cy + radius * Math.sin(angle));
+  }
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+function updateContact(contact) {
+  const overlay = document.getElementById('contact-overlay');
+  const info    = document.getElementById('contact-info');
+  const detail  = document.getElementById('contact-detail');
+  const coords  = document.getElementById('contact-coords');
+
+  if (!contact) {
+    overlay.style.display = 'none';
+    info.classList.remove('visible');
+    return;
+  }
+  overlay.style.display = 'block';
+  coords.textContent =
+    `(${contact.world_x.toFixed(1)}m, ${contact.world_y.toFixed(1)}m)  P=${contact.probability.toFixed(3)}`;
+
+  info.classList.add('visible');
+  detail.innerHTML =
+    `cell: [${contact.cell_x}, ${contact.cell_y}]<br>` +
+    `world: (${contact.world_x.toFixed(1)}m, ${contact.world_y.toFixed(1)}m)<br>` +
+    `P: ${contact.probability.toFixed(4)}<br>` +
+    `conf: ${(contact.combined_confidence * 100).toFixed(1)}%<br>` +
+    `sensors: ${contact.sensors.join(', ')}`;
+}
+
+// ── hazard overlay on canvas ──────────────────────────────────────────────────
+const HAZARD_CELL_M = 2.0;   // matches CELL_SIZE_M in fusion.py
+
+const HAZARD_STYLE = {
+  cliff_edge:    { stroke: '#ff1744', label: '!' },
+  obstacle:      { stroke: '#ffd740', label: '+' },
+  steep_slope:   { stroke: '#ff9800', label: '/' },
+  ravine_bottom: { stroke: '#448aff', label: 'v' },
+};
+
+function drawHazards(alerts) {
+  for (const a of alerts) {
+    const hx = Math.floor(a.world_x / HAZARD_CELL_M) * CELL_PX;
+    const hy = Math.floor(a.world_y / HAZARD_CELL_M) * CELL_PX;
+    const s  = HAZARD_STYLE[a.hazard] || { stroke: '#fff', label: '?' };
+
+    ctx.strokeStyle = s.stroke;
+    ctx.lineWidth   = 3;
+    ctx.strokeRect(hx + 1.5, hy + 1.5, CELL_PX - 3, CELL_PX - 3);
+
+    ctx.fillStyle    = s.stroke;
+    ctx.font         = `bold ${Math.round(CELL_PX * 0.38)}px monospace`;
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(s.label, hx + 3, hy + 2);
+  }
+}
+
+function updateHazards(alerts) {
+  const list = document.getElementById('hazard-list');
+  if (!alerts || alerts.length === 0) {
+    list.innerHTML = '<span style="color:#37474f">clear</span>';
+    return;
+  }
+  const colors = {
+    cliff_edge:    '#ff1744',
+    obstacle:      '#ffd740',
+    steep_slope:   '#ff9800',
+    ravine_bottom: '#448aff',
+  };
+  list.innerHTML = alerts.slice(-4).reverse().map(a => {
+    const col  = colors[a.hazard] || '#888';
+    const desc = a.description.length > 27
+      ? a.description.slice(0, 27) + '…'
+      : a.description;
+    const pos = `(${a.world_x.toFixed(0)}m,${a.world_y.toFixed(0)}m)`;
+    return `<div style="color:${col};margin-bottom:2px">`
+      + `&#9888; ${desc} ${pos}`
+      + `</div>`;
+  }).join('');
+}
+
+// ── sensor status update (called by fusion layer via "sensor_event" msg) ──────
+function updateSensorDot(name, detection, confidence) {
+  const dot  = document.getElementById(`dot-${name}`);
+  const conf = document.getElementById(`conf-${name}`);
+  if (!dot) return;
+  dot.classList.toggle('active', detection);
+  conf.textContent = detection ? `${(confidence * 100).toFixed(0)}%` : '—';
+}
+
+// ── WebSocket ─────────────────────────────────────────────────────────────────
+let ws     = null;
+let wsOk   = false;
+
+function connect() {
+  ws = new WebSocket(WS_URL);
+
+  ws.onopen = () => {
+    wsOk = true;
+    document.getElementById('ws-status').textContent   = 'CONNECTED';
+    document.getElementById('ws-status').className     = 'connected';
+    // Poll for state updates
+    setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'query' }));
+      }
+    }, QUERY_MS);
+  };
+
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+
+      // State snapshot from Rust core
+      if (Array.isArray(msg.grid)) {
+        render(msg);
+        return;
+      }
+
+      // Optional: sensor event forwarded from fusion layer
+      if (msg.event === 'sensor') {
+        updateSensorDot(msg.sensor_type, msg.detection, msg.confidence);
+      }
+    } catch (err) {
+      console.warn('parse error', err);
+    }
+  };
+
+  ws.onclose = () => {
+    wsOk = false;
+    document.getElementById('ws-status').textContent = 'RECONNECTING…';
+    document.getElementById('ws-status').className   = 'disconnected';
+    setTimeout(connect, 2000);
+  };
+
+  ws.onerror = () => ws.close();
+}
+
+connect();
+</script>
+</body>
+</html>
