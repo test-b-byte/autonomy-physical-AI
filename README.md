@@ -1,4 +1,4 @@
-See ReadMe files in file library. Ground drone used for event. System designed to use sensor fusion and SLAM in a motor driven platform to create a full cycle autonomous system. Requires no pilot, not connectivity.
+See ReadMe files in file library. Ground drone used for event. System designed to use sensor fusion and SLAM in a motor driven platform to create a full cycle autonomous system. Requires no pilot, no connectivity. Basic prototype for autonomous platforms. Topic: Downed Pilot/ Lost Hiker, unknown location, denied area.
 
 
 ![GHOST ground robot](ground_motor_drone.jpeg)
