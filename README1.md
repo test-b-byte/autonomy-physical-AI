@@ -1,3 +1,5 @@
+## ARCHITECTURE AND CONOP (SYSTEM AND SIM)
+
 # C2 Operations Picture: the TOC game board
 
 **Operation Lost and Found · Code Metal Forge 2026 · Team 20**
