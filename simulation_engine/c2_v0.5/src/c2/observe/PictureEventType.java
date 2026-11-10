@@ -1,0 +1,5 @@
+package c2.observe;
+
+public enum PictureEventType {
+    TICK, OBJECT_CONFIRMED, OBJECT_AGED, BELIEF_UPDATED, PATH_PLANNED, ALERT_RAISED, PHASE_CHANGED
+}

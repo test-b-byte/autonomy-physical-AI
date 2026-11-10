@@ -1,2 +1,11 @@
 target/
 .DS_Store
+build/
+inbox/
+out/
+snapshots/
+reports/
+__pycache__/
+*.pyc
+preview/
+preview_reports/

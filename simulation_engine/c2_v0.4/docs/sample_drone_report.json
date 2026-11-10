@@ -1,0 +1,10 @@
+{
+  "sortie_id": "W3-A",
+  "returned_at": "2026-11-08T13:59:00Z",
+  "swept_cells": [[88,97],[89,97],[89,98],[90,99]],
+  "sighting": [89,97],
+  "hazards_seen": [[90,101]],
+  "hostiles_seen": [[64,112]],
+  "medical": {"app_version": "v0.5", "values": [0, 1, 2, 1, 2, 3, 2],
+              "needs_attention": ["Bleeding: SEVERE", "Breathing injury: BAD", "Cold / freezing: BAD"]}
+}

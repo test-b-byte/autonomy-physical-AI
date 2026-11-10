@@ -1,0 +1,43 @@
+{
+  "scenario": "C2 v0.4 (test floor at 1:400)",
+  "you": {
+    "x": 0,
+    "y": 0,
+    "uncertainty_m": 50
+  },
+  "drone": {
+    "x": 100,
+    "y": 0
+  },
+  "team": {
+    "x": -950,
+    "y": -1850,
+    "label": "TEAM"
+  },
+  "hazards": [
+    {
+      "x": -200,
+      "y": -750,
+      "label": "FIRE"
+    },
+    {
+      "x": 500,
+      "y": 200,
+      "label": "FIRE"
+    },
+    {
+      "x": 200,
+      "y": 1350,
+      "label": "CLIFF"
+    }
+  ],
+  "hostiles": [
+    {
+      "x": 1550,
+      "y": 1150,
+      "label": "ENEMY"
+    }
+  ],
+  "heading_deg": null,
+  "updated": null
+}
